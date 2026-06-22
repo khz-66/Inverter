@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/index.css">
+
+  <script src="p5.min.js"></script>
+
+  <title>Inverter</title>
+ 
+  <style>
+    #uploadZone {
+      background: #eee;
+      padding: 20px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Inverter</h1>
+  <p>Invertiert Bilder und speichert das Ergebnis als "dateiname_inverted" unter Downloads.
+  Transparenz bleibt erhalten.</p>
+  <p><a href="https://khz-66.github.io/" target="_blank">Homepage</a><br></p>
+  <div id="uploadZone">
+    <input id="fileInput" type="file" multiple>
+  </div>
+
+  <img src="invert.jpg" style="width: 100%; height: auto; max-width: 400px;">
+
+  <script>
+    let bilderWarteschlange = [];
+    let dateiNamen = [];
+    let dateiEndungen = [];
+    let aktuellesBildIndex = 0;
+    let verarbeitungGestartet = false;
+
+    function setup() {
+      createCanvas(400, 150);
+      pixelDensity(1);
+      noLoop();
+
+      let fileInput = select("#fileInput");
+      fileInput.changed(() => {
+        let files = fileInput.elt.files;
+        for (let f of files) {
+          handleFile({ 
+            type: "image",
+            name: f.name,
+            data: URL.createObjectURL(f)
+          });
+        }
+      });
+
+      ZeigeStartBildschirm();
+    }
+
+    function ZeigeStartBildschirm() {
+      background(240);
+      fill(50);
+      noStroke();
+      textAlign(LEFT, TOP);
+      textSize(13);
+      text("1. Klicke auf 'Datei auswählen'\n2. Wähle ein oder mehrere Bilder aus\n\nDie Verarbeitung startet sofort automatisch.", 20, 60);
+    }
+
+    function handleFile(file) {
+      if (file.type === 'image') {
+        let punkteIndex = file.name.lastIndexOf('.');
+        let endung = punkteIndex !== -1 ? file.name.substring(punkteIndex + 1).toLowerCase() : 'png';
+        if (endung === 'jpeg') endung = 'jpg';
+
+        let img = loadImage(file.data, () => {
+          bilderWarteschlange.push(img);
+          dateiNamen.push(file.name.substring(0, punkteIndex));
+          dateiEndungen.push(endung);
+
+          if (!verarbeitungGestartet) {
+            verarbeitungGestartet = true;
+            setTimeout(() => { redraw(); }, 300);
+          }
+        });
+      }
+    }
+
+    function draw() {
+      if (verarbeitungGestartet && aktuellesBildIndex < bilderWarteschlange.length) {
+        verarbeiteBild(bilderWarteschlange[aktuellesBildIndex]);
+      }
+    }
+
+    function verarbeiteBild(img) {
+
+  // Bild invertieren
+  img.loadPixels();
+  for (let i = 0; i < img.pixels.length; i += 4) {
+    img.pixels[i + 0] = 255 - img.pixels[i + 0]; // R
+    img.pixels[i + 1] = 255 - img.pixels[i + 1]; // G
+    img.pixels[i + 2] = 255 - img.pixels[i + 2]; // B
+    // Alpha bleibt unverändert
+  }
+  img.updatePixels();
+
+  // Canvas auf Bildgröße setzen
+  resizeCanvas(img.width, img.height);
+  image(img, 0, 0);
+
+  // Dateiname erzeugen
+  let basisName = dateiNamen[aktuellesBildIndex];
+  let ext = dateiEndungen[aktuellesBildIndex];
+  let neuerName = basisName + "_inverted." + ext;
+
+  // Speichern (NICHT geändert!)
+  saveCanvas(neuerName);
+
+  // Statusanzeige
+  resizeCanvas(400, 150);
+  background(200, 230, 255);
+  fill(0, 60, 120);
+  text(`Verarbeitet (${aktuellesBildIndex + 1}/${bilderWarteschlange.length}):\n${neuerName}`, 20, 70);
+
+  // Nächstes Bild
+  aktuellesBildIndex++;
+
+  if (aktuellesBildIndex < bilderWarteschlange.length) {
+    setTimeout(() => { redraw(); }, 800);
+  } else {
+    background(0, 120, 200);
+    fill(255);
+    textAlign(CENTER, CENTER);
+    text(`Fertig! ${bilderWarteschlange.length} Bilder invertiert.`, width / 2, height / 2 + 20);
+
+    // Reset
+    verarbeitungGestartet = false;
+    bilderWarteschlange = [];
+    dateiNamen = [];
+    dateiEndungen = [];
+    aktuellesBildIndex = 0;
+  }
+}
+  </script>
+  </body>
+</html>
